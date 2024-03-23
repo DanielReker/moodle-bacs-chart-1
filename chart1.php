@@ -69,9 +69,21 @@ class filter_form extends moodleform {
 }
 
 
-function generate_chart($form_data)
+function get_submits($form_data): array
 {
     global $DB;
+
+    // Form SQL query with filtering
+    $sql_query_filtered_submits = "SELECT id, submit_time
+                FROM mdl_bacs_submits_copy
+                WHERE (submit_time BETWEEN {$form_data->from} AND {$form_data->to})";
+    if($form_data->contest_id != 0) $sql_query_filtered_submits .= " AND (contest_id = {$form_data->contest_id})";
+    return $DB->get_records_sql($sql_query_filtered_submits);
+}
+
+
+function generate_chart($form_data): \core\chart_bar
+{
     $labels = []; // Chart labels
     $submits_per_hour = []; // Diagram values
 
@@ -86,13 +98,9 @@ function generate_chart($form_data)
         $submits_per_hour[$date->format("H")] = 0; //
     }
 
-    // Form SQL query with filtering
-    $sql_query_filtered_submits = "SELECT id, submit_time
-                FROM mdl_bacs_submits_copy
-                WHERE (submit_time BETWEEN {$form_data->from} AND {$form_data->to})";
-    if($form_data->contest_id != 0) $sql_query_filtered_submits .= " AND (contest_id = {$form_data->contest_id})";
+    // Gather filtered submits from DB
+    $submits = get_submits($form_data);
 
-    $submits = $DB->get_records_sql($sql_query_filtered_submits);
     foreach ($submits as $submit){
         $submits_per_hour[date("H", $submit->submit_time)]++;
     }
