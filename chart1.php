@@ -2,12 +2,12 @@
 
 global $OUTPUT, $PAGE, $DB, $CFG;
 
-require_once(dirname(__FILE__, 3) . '/config.php');
+require_once(dirname(__FILE__, 2) . '/config.php');
 require_once("{$CFG->libdir}/formslib.php");
 
 
 // Set up page
-$PAGE->set_url(new moodle_url('/mod/bacs/chart1.php'));
+$PAGE->set_url(new moodle_url('/bacs_charts/chart1.php'));
 $PAGE->set_context(context_system::instance());
 $PAGE->set_heading("Submits amount distribution during the day");
 $PAGE->set_title("Sumbits during the day");
