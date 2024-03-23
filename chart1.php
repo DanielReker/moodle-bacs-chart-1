@@ -18,43 +18,60 @@ require_login();
 
 // Filter form
 class filter_form extends moodleform {
+    private DateTime $default_from, $default_to;
+    private int $default_contest_id;
+
+    function __construct()
+    {
+        // Setting default filter values
+        $this->default_from = new DateTime("now", core_date::get_server_timezone_object());
+        $this->default_from->setTime(0, 0, 0); // From the start of today
+
+        $this->default_to = new DateTime("now", core_date::get_server_timezone_object()); // Till now
+        $ceil_seconds = 60 - (int)$this->default_to->format("s");
+        $this->default_to->add(new DateInterval("PT{$ceil_seconds}S")); // Ceil to nearest minute
+
+        $this->default_contest_id = 0;
+
+        parent::__construct();
+    }
+
+    // Get form data, defaults returned if there's no submitted data
+    function get_data() : object {
+        $form_data = parent::get_data();
+        if(!$form_data) $form_data = (object)[
+            'from' => $this->default_from->getTimestamp(),
+            'to' => $this->default_to->getTimestamp(),
+            'contest_id' => $this->default_contest_id
+        ];
+        return $form_data;
+    }
+
     protected function definition()
     {
         $mform = $this->_form;
 
         // Date range selector filter (from/to)
-        $mform->addElement("date_selector", "from", "From");
-        $mform->addElement("date_selector", "to", "To");
+        $mform->addElement('date_time_selector', 'from', 'From');
+        $mform->setDefault('from', $this->default_from->getTimestamp());
+
+        $mform->addElement('date_time_selector', 'to', 'To');
+        $mform->setDefault('to', $this->default_to->getTimestamp());
 
         // Contest ID filter (assuming 0 means "all contests", i.e. no filter)
-        $mform->addElement("text", "contest_id", "Contest ID (0 for any)");
-        $mform->setType("contest_id", PARAM_INT );
-        $mform->setDefault("contest_id", 228);
+        $mform->addElement('text', 'contest_id', 'Contest ID (0 for any)');
+        $mform->setType('contest_id', PARAM_INT );
+        $mform->setDefault('contest_id', $this->default_contest_id);
 
         // Apply filter button
-        $mform->addElement('submit', 'apply_filter', "Apply filter");
+        $mform->addElement('submit', 'apply_filter', 'Apply filter');
     }
 }
 
-// Setting default filter values
-$default_form_data = (object)[
-    'from' => $DB->get_field_sql("SELECT MIN(submit_time) FROM mdl_bacs_submits_copy"),
-    'to' => $DB->get_field_sql("SELECT MAX(submit_time) FROM mdl_bacs_submits_copy"),
-    'contest_id' => 0
-];
 
-// Creating filter form instance
-$mform = new filter_form();
-
-// Gather form data, set to default if there's no yet
-$mform->set_data($default_form_data);
-$form_data = $mform->get_data();
-if(!$form_data) $form_data = $default_form_data;
-
-
-function generate_chart()
+function generate_chart($form_data)
 {
-    global $DB, $form_data;
+    global $DB;
     $labels = []; // Chart labels
     $submits_per_hour = []; // Diagram values
 
@@ -89,14 +106,18 @@ function generate_chart()
 }
 
 
+
 // Render page
+
+// Creating filter form instance
+$filter_form = new filter_form();
 
 echo $OUTPUT->header();
 
 // Render filter form
-$mform->display();
+$filter_form->display();
 
 // Render diagram
-echo $OUTPUT->render(generate_chart());
+echo $OUTPUT->render(generate_chart($filter_form->get_data()));
 
 echo $OUTPUT->footer();
