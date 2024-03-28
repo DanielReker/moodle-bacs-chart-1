@@ -19,7 +19,7 @@ require_login();
 // Filter form
 class filter_form extends moodleform {
     private DateTime $default_from, $default_to;
-    private int $default_contest_id;
+    private $default_course_id = 'all';
 
     function __construct()
     {
@@ -31,18 +31,16 @@ class filter_form extends moodleform {
         $ceil_seconds = 60 - (int)$this->default_to->format("s");
         $this->default_to->add(new DateInterval("PT{$ceil_seconds}S")); // Ceil to nearest minute
 
-        $this->default_contest_id = 0;
-
         parent::__construct();
     }
 
     // Get form data, defaults returned if there's no submitted data
-    function get_data() : object {
+    function get_data(): object {
         $form_data = parent::get_data();
         if(!$form_data) $form_data = (object)[
             'from' => $this->default_from->getTimestamp(),
             'to' => $this->default_to->getTimestamp(),
-            'contest_id' => $this->default_contest_id
+            'course_id' => $this->default_course_id
         ];
         return $form_data;
     }
@@ -58,27 +56,63 @@ class filter_form extends moodleform {
         $mform->addElement('date_time_selector', 'to', 'To');
         $mform->setDefault('to', $this->default_to->getTimestamp());
 
-        // Contest ID filter (assuming 0 means "all contests", i.e. no filter)
-        $mform->addElement('text', 'contest_id', 'Contest ID (0 for any)');
-        $mform->setType('contest_id', PARAM_INT );
-        $mform->setDefault('contest_id', $this->default_contest_id);
+        // Course selector
+        $courses = ['all' => 'All'];
+        foreach (get_available_courses() as $course){
+            $courses[$course->id] = $course->shortname;
+        }
+        $mform->addElement('select', 'course_id', 'Course', $courses);
+        $mform->setDefault('course_id', $this->default_course_id);
 
         // Apply filter button
         $mform->addElement('submit', 'apply_filter', 'Apply filter');
     }
 }
 
+// Check is course available for current user
+function is_course_available($course_id)
+{
+    $context = context_course::instance($course_id);
+    return has_capability('mod/bacs:viewany', $context);
+}
 
-function get_submits($form_data): array
+// Get courses filtered by availability
+function get_available_courses(): array
+{
+    $available_courses = [];
+
+    $courses = get_courses();
+    foreach($courses as $course) {
+        if (is_course_available($course->id))
+            $available_courses[] = $course;
+    }
+
+    return $available_courses;
+}
+
+
+function get_filtered_submits($form_data): array
 {
     global $DB;
 
     // Form SQL query with filtering
-    $sql_query_filtered_submits = "SELECT id, submit_time
-                FROM mdl_bacs_submits_copy
-                WHERE (submit_time BETWEEN {$form_data->from} AND {$form_data->to})";
-    if($form_data->contest_id != 0) $sql_query_filtered_submits .= " AND (contest_id = {$form_data->contest_id})";
-    return $DB->get_records_sql($sql_query_filtered_submits);
+    $course_id_filter = "";
+    if($form_data->course_id != 'all') $course_id_filter = " AND (course.id = $form_data->course_id)";
+    $sql =
+        "SELECT submit.id AS id, course.id AS course_id, submit_time
+         FROM {bacs_submits} submit
+         JOIN {bacs} contest ON submit.contest_id = contest.id  
+         JOIN {course} course ON contest.course = course.id
+         WHERE (submit_time BETWEEN $form_data->from AND $form_data->to) $course_id_filter";
+
+    // Filter submits by availability
+    $submits = [];
+    foreach ($DB->get_records_sql($sql) as $submit) {
+        if (is_course_available($submit->course_id))
+            $submits[] = $submit;
+    }
+
+    return $submits;
 }
 
 
@@ -99,7 +133,8 @@ function generate_chart($form_data): \core\chart_bar
     }
 
     // Gather filtered submits from DB
-    $submits = get_submits($form_data);
+    $submits = get_filtered_submits($form_data);
+
 
     foreach ($submits as $submit){
         $submits_per_hour[date("H", $submit->submit_time)]++;
