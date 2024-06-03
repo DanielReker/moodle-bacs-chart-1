@@ -27,6 +27,7 @@ use core\chart_bar;
 use core\chart_series;
 
 require_once(dirname(__FILE__, 2) . '/config.php');
+require_once(dirname(__FILE__) . '/filter_state.php');
 
 global $OUTPUT, $PAGE, $DB, $CFG;
 
@@ -42,57 +43,38 @@ $PAGE->set_pagelayout("standard");
 
 require_login();
 
+
+
+
 /**
  * Filter form that allows user to select course and time period
  */
 class filter_form extends moodleform {
-    /**
-     * Default "from" time
-     * @var DateTime
-     */
-    private DateTime $defaultfrom;
-
-    /**
-     * Default "to" time
-     * @var DateTime
-     */
-    private DateTime $defaultto;
-
-    /**
-     * Default course ID
-     * @var string
-     */
-    private string $defaultcourseid = 'all';
+    /** @var filter_state Default filter state */
+    private filter_state $defaultfilterstate;
 
     /**
      * This overridden constructor calculates default filter values and then calls parent constructor
+     *
      * @throws Exception
      */
     public function __construct() {
-        // Setting default filter values.
-        $this->defaultfrom = new DateTime("now", core_date::get_server_timezone_object());
-        $this->defaultfrom->setTime(0, 0); // From the start of today.
-        $this->defaultto = new DateTime("now", core_date::get_server_timezone_object()); // Till now.
-        $ceilseconds = 60 - (int)$this->defaultto->format("s");
-        $this->defaultto->add(new DateInterval("PT{$ceilseconds}S")); // Ceil to nearest minute.
-
+        $this->defaultfilterstate = filter_state::get_default(core_date::get_server_timezone_object());
         parent::__construct();
     }
 
     /**
      * Get form data, defaults returned if there's no submitted data
-     * @return stdClass
+     *
+     * @return filter_state
      */
-    public function get_data(): stdClass {
+    public function get_filter_state(): filter_state {
         $formdata = parent::get_data();
-        if (!$formdata) {
-            $formdata = (object)[
-                    'from' => $this->defaultfrom->getTimestamp(),
-                    'to' => $this->defaultto->getTimestamp(),
-                    'course_id' => $this->defaultcourseid,
-            ];
+        if ($formdata) {
+            return filter_state::from_std_class($formdata);
+        } else {
+            return $this->defaultfilterstate;
         }
-        return $formdata;
     }
 
     /**
@@ -103,18 +85,18 @@ class filter_form extends moodleform {
 
         // Date range selector filter (from/to).
         $mform->addElement('date_time_selector', 'from', 'From');
-        $mform->setDefault('from', $this->defaultfrom->getTimestamp());
+        $mform->setDefault('from', $this->defaultfilterstate->from->getTimestamp());
 
         $mform->addElement('date_time_selector', 'to', 'To');
-        $mform->setDefault('to', $this->defaultto->getTimestamp());
+        $mform->setDefault('to', $this->defaultfilterstate->to->getTimestamp());
 
         // Course selector.
         $courses = ['all' => 'All'];
         foreach (get_available_courses() as $course) {
             $courses[$course->id] = $course->shortname;
         }
-        $mform->addElement('select', 'course_id', 'Course', $courses);
-        $mform->setDefault('course_id', $this->defaultcourseid);
+        $mform->addElement('select', 'courseid', 'Course', $courses);
+        $mform->setDefault('courseid', $this->defaultfilterstate->courseid);
 
         // Apply filter button.
         $mform->addElement('submit', 'apply_filter', 'Apply filter');
@@ -123,6 +105,7 @@ class filter_form extends moodleform {
 
 /**
  * Check if course is available for current user
+ *
  * @param int $courseid
  * @return bool
  * @throws coding_exception
@@ -134,6 +117,7 @@ function is_course_available(int $courseid): bool {
 
 /**
  * Get courses filtered by availability
+ *
  * @return array
  */
 function get_available_courses(): array {
@@ -150,25 +134,26 @@ function get_available_courses(): array {
 }
 
 /**
- * Get submits filtered by form data
- * @param stdClass $formdata
+ * Get submits filtered by given filter state
+ *
+ * @param filter_state $filterstate
  * @return array
  * @throws dml_exception
  */
-function get_filtered_submits(stdClass $formdata): array {
+function get_filtered_submits(filter_state $filterstate): array {
     global $DB;
 
     // Form SQL query with filtering.
     $courseidfilter = "";
-    if ($formdata->course_id != 'all') {
-        $courseidfilter = " AND (course.id = $formdata->courseid)";
+    if ($filterstate->courseid != 'all') {
+        $courseidfilter = " AND (course.id = $filterstate->courseid)";
     }
     $sql =
         "SELECT submit.id AS id, course.id AS course_id, submit_time
          FROM {bacs_submits} submit
          JOIN {bacs} contest ON submit.contest_id = contest.id
          JOIN {course} course ON contest.course = course.id
-         WHERE (submit_time BETWEEN $formdata->from AND $formdata->to) $courseidfilter";
+         WHERE (submit_time BETWEEN {$filterstate->from->getTimestamp()} AND {$filterstate->to->getTimestamp()}) $courseidfilter";
 
     // Filter submits by availability.
     $submits = [];
@@ -182,12 +167,12 @@ function get_filtered_submits(stdClass $formdata): array {
 }
 
 /**
- * Generate renderable bar chart object by given form data
- * @param stdClass $formdata
+ * Generate renderable bar chart object by given filter state
+ * @param filter_state $filterstate
  * @return chart_bar
  * @throws dml_exception
  */
-function generate_chart(stdClass $formdata): chart_bar {
+function generate_chart(filter_state $filterstate): chart_bar {
     $labels = []; // Chart labels.
     $submitsperhour = []; // Diagram values.
 
@@ -203,7 +188,7 @@ function generate_chart(stdClass $formdata): chart_bar {
     }
 
     // Gather filtered submits from DB.
-    $submits = get_filtered_submits($formdata);
+    $submits = get_filtered_submits($filterstate);
 
 
     foreach ($submits as $submit) {
@@ -231,6 +216,6 @@ echo $OUTPUT->header();
 $filterform->display();
 
 // Render diagram.
-echo $OUTPUT->render(generate_chart($filterform->get_data()));
+echo $OUTPUT->render(generate_chart($filterform->get_filter_state()));
 
 echo $OUTPUT->footer();
