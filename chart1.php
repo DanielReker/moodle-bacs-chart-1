@@ -26,12 +26,10 @@
 use core\chart_bar;
 use core\chart_series;
 
-require_once(dirname(__FILE__, 2) . '/config.php');
-require_once(dirname(__FILE__) . '/filter_state.php');
 
-global $OUTPUT, $PAGE, $DB, $CFG;
-
-require_once("$CFG->libdir/formslib.php");
+require(__DIR__ . '/../config.php');
+global $OUTPUT, $PAGE, $CFG;
+require_once(__DIR__ . '/filter_form.php');
 
 
 // Set up page.
@@ -43,65 +41,6 @@ $PAGE->set_pagelayout("standard");
 
 require_login();
 
-
-
-
-/**
- * Filter form that allows user to select course and time period
- */
-class filter_form extends moodleform {
-    /** @var filter_state Default filter state */
-    private filter_state $defaultfilterstate;
-
-    /**
-     * This overridden constructor calculates default filter values and then calls parent constructor
-     *
-     * @throws Exception
-     */
-    public function __construct() {
-        $this->defaultfilterstate = filter_state::get_default(core_date::get_server_timezone_object());
-        parent::__construct();
-    }
-
-    /**
-     * Get form data, defaults returned if there's no submitted data
-     *
-     * @return filter_state
-     */
-    public function get_filter_state(): filter_state {
-        $formdata = parent::get_data();
-        if ($formdata) {
-            return filter_state::from_std_class($formdata);
-        } else {
-            return $this->defaultfilterstate;
-        }
-    }
-
-    /**
-     * Definition of form
-     */
-    protected function definition(): void {
-        $mform = $this->_form;
-
-        // Date range selector filter (from/to).
-        $mform->addElement('date_time_selector', 'from', 'From');
-        $mform->setDefault('from', $this->defaultfilterstate->from->getTimestamp());
-
-        $mform->addElement('date_time_selector', 'to', 'To');
-        $mform->setDefault('to', $this->defaultfilterstate->to->getTimestamp());
-
-        // Course selector.
-        $courses = ['all' => 'All'];
-        foreach (get_available_courses() as $course) {
-            $courses[$course->id] = $course->shortname;
-        }
-        $mform->addElement('select', 'courseid', 'Course', $courses);
-        $mform->setDefault('courseid', $this->defaultfilterstate->courseid);
-
-        // Apply filter button.
-        $mform->addElement('submit', 'apply_filter', 'Apply filter');
-    }
-}
 
 /**
  * Check if course is available for current user
