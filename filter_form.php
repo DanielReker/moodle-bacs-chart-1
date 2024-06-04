@@ -45,7 +45,7 @@ class filter_form extends moodleform {
     public function __construct(array $availablecourses, DateTimeZone $timezone) {
         $this->defaultfilterstate = filter_state::get_default($timezone);
         $this->availablecourses = $availablecourses;
-        parent::__construct();
+        parent::__construct(null, null, 'get');
     }
 
     /**

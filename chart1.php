@@ -23,14 +23,10 @@
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-
-
-
 require(__DIR__ . '/../config.php');
 global $OUTPUT, $PAGE, $CFG;
 require_once(__DIR__ . '/filter_form.php');
 require_once(__DIR__ . '/chart_hourly_distribution.php');
-
 
 // Set up page.
 $PAGE->set_url(new moodle_url('/bacs_charts/chart1.php'));
@@ -40,7 +36,6 @@ $PAGE->set_title("Sumbits during the day");
 $PAGE->set_pagelayout("standard");
 
 require_login();
-
 
 /**
  * Check if course is available for current user
@@ -85,14 +80,7 @@ function get_filtered_submits(filter_state $filterstate): array {
          WHERE (submit_time BETWEEN {$filterstate->from->getTimestamp()} AND {$filterstate->to->getTimestamp()}) $courseidfilter";
 
     // Filter submits by availability.
-    $submits = [];
-    foreach ($DB->get_records_sql($sql) as $submit) {
-        if (is_course_available($submit->course_id)) {
-            $submits[] = $submit;
-        }
-    }
-
-    return $submits;
+    return array_values(array_filter($DB->get_records_sql($sql), fn($submit) => is_course_available($submit->course_id)));
 }
 
 
