@@ -37,9 +37,8 @@ class filter_form extends moodleform {
      *
      * @throws Exception
      */
-    public function __construct() {
-        // TODO: Pass timezone in constructor.
-        $this->defaultfilterstate = filter_state::get_default(core_date::get_server_timezone_object());
+    public function __construct(DateTimeZone $timezone) {
+        $this->defaultfilterstate = filter_state::get_default($timezone);
         parent::__construct();
     }
 

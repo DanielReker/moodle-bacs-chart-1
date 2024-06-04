@@ -108,8 +108,10 @@ function get_filtered_submits(filter_state $filterstate): array {
 
 // Render page.
 
+$timezone = core_date::get_server_timezone_object();
+
 // Creating filter form instance.
-$filterform = new filter_form();
+$filterform = new filter_form($timezone);
 
 echo $OUTPUT->header();
 
@@ -121,7 +123,7 @@ $filterform->display();
 // Render diagram.
 $submits = get_filtered_submits($filterform->get_filter_state());
 $chart = new chart_hourly_distribution();
-$timezone = core_date::get_server_timezone_object();
+
 $chart->add_date_times(
     array_map(fn($submit) => (new DateTime("@$submit->submit_time"))->setTimezone($timezone), $submits),
     "Submits"
