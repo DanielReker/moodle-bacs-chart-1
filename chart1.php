@@ -50,8 +50,7 @@ require_login();
  * @throws coding_exception
  */
 function is_course_available(int $courseid): bool {
-    $context = context_course::instance($courseid);
-    return has_capability('mod/bacs:viewany', $context);
+    return has_capability('mod/bacs:viewany', context_course::instance($courseid));
 }
 
 /**
@@ -60,16 +59,7 @@ function is_course_available(int $courseid): bool {
  * @return array
  */
 function get_available_courses(): array {
-    $availablecourses = [];
-
-    $courses = get_courses();
-    foreach ($courses as $course) {
-        if (is_course_available($course->id)) {
-            $availablecourses[] = $course;
-        }
-    }
-
-    return $availablecourses;
+    return array_values(array_filter(get_courses(), fn($course) => is_course_available($course->id)));
 }
 
 /**
@@ -111,7 +101,7 @@ function get_filtered_submits(filter_state $filterstate): array {
 $timezone = core_date::get_server_timezone_object();
 
 // Creating filter form instance.
-$filterform = new filter_form($timezone);
+$filterform = new filter_form(get_available_courses(), $timezone);
 
 echo $OUTPUT->header();
 

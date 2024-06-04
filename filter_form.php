@@ -32,13 +32,19 @@ class filter_form extends moodleform {
     /** @var filter_state Default filter state */
     private filter_state $defaultfilterstate;
 
+    /** @var array List of available courses for course selector */
+    private array $availablecourses;
+
     /**
      * This overridden constructor calculates default filter values and then calls parent constructor
      *
+     * @param array $availablecourses List of available courses
+     * @param DateTimeZone $timezone Preferred timezone
      * @throws Exception
      */
-    public function __construct(DateTimeZone $timezone) {
+    public function __construct(array $availablecourses, DateTimeZone $timezone) {
         $this->defaultfilterstate = filter_state::get_default($timezone);
+        $this->availablecourses = $availablecourses;
         parent::__construct();
     }
 
@@ -71,7 +77,7 @@ class filter_form extends moodleform {
 
         // Course selector.
         $courses = ['all' => 'All'];
-        foreach (get_available_courses() as $course) {
+        foreach ($this->availablecourses as $course) {
             $courses[$course->id] = $course->shortname;
         }
         $mform->addElement('select', 'courseid', 'Course', $courses);
