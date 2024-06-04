@@ -75,7 +75,7 @@ class chart_hourly_distribution {
         foreach ($datetimeseries as $datetime) {
             $values[$datetime->format("H")]++; // Get hour of given DateTime.
         }
-        $series = new chart_series("Submits", array_values($values));
+        $series = new chart_series($seriesname, array_values($values));
         $this->chart->add_series($series);
     }
 
