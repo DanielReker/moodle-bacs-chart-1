@@ -52,6 +52,7 @@ class filter_state {
      * @return filter_state
      */
     public static function from_std_class(stdClass $data): filter_state {
+        // TODO: Make with constructors.
         $from = new DateTime();
         $from->setTimestamp($data->from);
         $to = new DateTime();

@@ -23,13 +23,13 @@
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-use core\chart_bar;
-use core\chart_series;
+
 
 
 require(__DIR__ . '/../config.php');
 global $OUTPUT, $PAGE, $CFG;
 require_once(__DIR__ . '/filter_form.php');
+require_once(__DIR__ . '/chart_hourly_distribution.php');
 
 
 // Set up page.
@@ -105,44 +105,6 @@ function get_filtered_submits(filter_state $filterstate): array {
     return $submits;
 }
 
-/**
- * Generate renderable bar chart object by given filter state
- * @param filter_state $filterstate
- * @return chart_bar
- * @throws dml_exception
- */
-function generate_chart(filter_state $filterstate): chart_bar {
-    $labels = []; // Chart labels.
-    $submitsperhour = []; // Diagram values.
-
-    // Iterate over all 24 hours.
-    $dayperiod = new DatePeriod(
-        new DateTime("00:00"),
-        new DateInterval('PT1H'),
-        new DateTime("24:00")
-    );
-    foreach ($dayperiod as $date) {
-        $labels[] = $date->format("H:i"); // Hour xx:00.
-        $submitsperhour[$date->format("H")] = 0;
-    }
-
-    // Gather filtered submits from DB.
-    $submits = get_filtered_submits($filterstate);
-
-
-    foreach ($submits as $submit) {
-        $submitsperhour[date("H", $submit->submit_time)]++;
-    }
-
-    $chart = new chart_bar();
-    $series = new chart_series("Submits", array_values($submitsperhour));
-    $chart->set_labels($labels);
-    $chart->add_series($series);
-
-    return $chart;
-}
-
-
 
 // Render page.
 
@@ -154,7 +116,17 @@ echo $OUTPUT->header();
 // Render filter form.
 $filterform->display();
 
+
+
 // Render diagram.
-echo $OUTPUT->render(generate_chart($filterform->get_filter_state()));
+$submits = get_filtered_submits($filterform->get_filter_state());
+$chart = new chart_hourly_distribution();
+$timezone = core_date::get_server_timezone_object();
+$chart->add_date_times(
+    array_map(fn($submit) => (new DateTime("@$submit->submit_time"))->setTimezone($timezone), $submits),
+    "Submits"
+);
+echo $chart->render_by($OUTPUT);
+
 
 echo $OUTPUT->footer();
