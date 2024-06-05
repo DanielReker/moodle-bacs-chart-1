@@ -1,0 +1,67 @@
+@startuml
+
+'skinparam classAttributeIconSize 0
+
+class View.filter_form {
+    - defaultfilterstate: filter_state
+    - availablecourses: object[]
+    + __construct(availablecourses: object[],\n timezone: DateTimeZone)
+    + get_filter_state(): filter_state
+    # definition(): void
+}
+class View.chart_hourly_distribution {
+    - dayhours: DatePeriod
+    - chart: chart_bar
+    + __construct()
+    + add_date_times(datetimeseries: DateTime[],\n seriesname: string): void
+    + render_by(renderer: renderer_base): string
+}
+class View.filter_state {
+    + from: DateTime
+    + to: DateTime
+    + courseid: int|null
+    + get_course_id_string(): string
+    + __construct(from: DateTime, to: DateTime,\n [courseid: int|null = null])
+    + {static} from_std_class(data: stdClass): filter_state
+    + {static} get_default(datetimezone: DateTimeZone): filter_state
+}
+
+
+class Model.submits_manager {
+    - timezone: DateTimeZone
+    + __construct(timezone: DateTimeZone)
+    + {static} get_available_courses(): object[]
+    - {static} is_course_available(courseid: int): bool
+    + get_filtered(from: DateTime, to: DateTime,\ncourseid: int|null = null]): submit[]
+    + get_available_filtered(\nfrom: DateTime, to: DateTime,\n[courseid: int|null = null]): submit[]
+
+}
+class Model.submit {
+    + time: DateTime
+    + courseid: int
+    + __construct(time: DateTime, courseid: int)
+}
+
+
+
+class MoodleAPI.moodleform
+class MoodleAPI.chart_bar
+
+
+stereotype Controller.submits_hourly_distribution <<page script>>
+
+MoodleAPI.chart_bar --* View.chart_hourly_distribution
+MoodleAPI.moodleform <|-- View.filter_form
+
+Model.submits_manager ..> Model.submit
+
+View.filter_form *-- View.filter_state
+
+Controller.submits_hourly_distribution ..> submit
+Controller.submits_hourly_distribution ..> submits_manager
+Controller.submits_hourly_distribution ..> filter_form
+Controller.submits_hourly_distribution ..> filter_state
+Controller.submits_hourly_distribution ..> chart_hourly_distribution
+
+
+@enduml
