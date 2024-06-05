@@ -59,6 +59,10 @@ $chart->add_date_times(
 
 // Render page.
 echo $OUTPUT->header();
-$filterform->display();
+
+echo $filterform->render();
+echo html_writer::start_div('w-75');
 echo $chart->render_by($OUTPUT);
+echo html_writer::end_div();
+
 echo $OUTPUT->footer();
