@@ -27,6 +27,7 @@ require(__DIR__ . '/../config.php');
 global $OUTPUT, $PAGE, $CFG;
 require_once(__DIR__ . '/filter_form.php');
 require_once(__DIR__ . '/chart_hourly_distribution.php');
+require_once(__DIR__ . '/submits_manager.php');
 
 // Set up page.
 $PAGE->set_url(new moodle_url('/bacs_charts/chart1.php'));
@@ -37,59 +38,13 @@ $PAGE->set_pagelayout("standard");
 
 require_login();
 
-/**
- * Check if course is available for current user
- *
- * @param int $courseid
- * @return bool
- * @throws coding_exception
- */
-function is_course_available(int $courseid): bool {
-    return has_capability('mod/bacs:viewany', context_course::instance($courseid));
-}
-
-/**
- * Get courses filtered by availability
- *
- * @return array
- */
-function get_available_courses(): array {
-    return array_values(array_filter(get_courses(), fn($course) => is_course_available($course->id)));
-}
-
-/**
- * Get submits filtered by given filter state
- *
- * @param filter_state $filterstate
- * @return array
- * @throws dml_exception
- */
-function get_filtered_submits(filter_state $filterstate): array {
-    global $DB;
-
-    // Form SQL query with filtering.
-    $courseidfilter = "";
-    if ($filterstate->courseid != 'all') {
-        $courseidfilter = " AND (course.id = $filterstate->courseid)";
-    }
-    $sql =
-        "SELECT submit.id AS id, course.id AS course_id, submit_time
-         FROM {bacs_submits} submit
-         JOIN {bacs} contest ON submit.contest_id = contest.id
-         JOIN {course} course ON contest.course = course.id
-         WHERE (submit_time BETWEEN {$filterstate->from->getTimestamp()} AND {$filterstate->to->getTimestamp()}) $courseidfilter";
-
-    // Filter submits by availability.
-    return array_values(array_filter($DB->get_records_sql($sql), fn($submit) => is_course_available($submit->course_id)));
-}
-
 
 // Render page.
 
 $timezone = core_date::get_server_timezone_object();
 
 // Creating filter form instance.
-$filterform = new filter_form(get_available_courses(), $timezone);
+$filterform = new filter_form(submits_manager::get_available_courses(), $timezone);
 
 echo $OUTPUT->header();
 
@@ -99,11 +54,18 @@ $filterform->display();
 
 
 // Render diagram.
-$submits = get_filtered_submits($filterform->get_filter_state());
-$chart = new chart_hourly_distribution();
+$filterstate = $filterform->get_filter_state();
 
+$submitsmanager = new submits_manager($timezone);
+$submits = $submitsmanager->get_available_filtered(
+    $filterstate->from,
+    $filterstate->to,
+    $filterstate->courseid
+);
+
+$chart = new chart_hourly_distribution();
 $chart->add_date_times(
-    array_map(fn($submit) => (new DateTime("@$submit->submit_time"))->setTimezone($timezone), $submits),
+    array_map(fn($submit) => $submit->time, $submits),
     "Submits"
 );
 echo $chart->render_by($OUTPUT);

@@ -54,7 +54,7 @@ class filter_form extends moodleform {
      * @return filter_state
      */
     public function get_filter_state(): filter_state {
-        $formdata = parent::get_data();
+        $formdata = $this->get_data();
         if ($formdata) {
             return filter_state::from_std_class($formdata);
         } else {
@@ -81,7 +81,7 @@ class filter_form extends moodleform {
             $courses[$course->id] = $course->shortname;
         }
         $mform->addElement('select', 'courseid', 'Course', $courses);
-        $mform->setDefault('courseid', $this->defaultfilterstate->courseid);
+        $mform->setDefault('courseid', $this->defaultfilterstate->get_course_id_string());
 
         // Apply filter button.
         $mform->addElement('submit', 'apply_filter', 'Apply filter');

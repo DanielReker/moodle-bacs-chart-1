@@ -28,8 +28,17 @@ class filter_state {
     /** @var DateTime End of time period */
     public DateTime $to;
 
-    /** @var string Selected course ID, or 'all' if all courses are selected */
-    public string $courseid;
+    /** @var int|null Selected course ID, or null if all courses are selected */
+    public int|null $courseid;
+
+    /**
+     * Get string representation of course ID ('all' if no specific course selected)
+     *
+     * @return string
+     */
+    public function get_course_id_string(): string {
+        return is_null($this->courseid) ? 'all' : $this->courseid;
+    }
 
 
     /**
@@ -37,9 +46,9 @@ class filter_state {
      *
      * @param DateTime $from
      * @param DateTime $to
-     * @param string $courseid
+     * @param int|null $courseid
      */
-    public function __construct(DateTime $from, DateTime $to, string $courseid = 'all') {
+    public function __construct(DateTime $from, DateTime $to, int|null $courseid = null) {
         $this->from = $from;
         $this->to = $to;
         $this->courseid = $courseid;
@@ -52,7 +61,11 @@ class filter_state {
      * @return filter_state
      */
     public static function from_std_class(stdClass $data): filter_state {
-        return new filter_state(new DateTime("@$data->from"), new DateTime("@$data->to"), $data->courseid);
+        return new filter_state(
+            new DateTime("@$data->from"),
+            new DateTime("@$data->to"),
+            $data->courseid == 'all' ? null : $data->courseid
+        );
     }
 
     /**
