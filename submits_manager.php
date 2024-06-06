@@ -73,14 +73,13 @@ class submits_manager {
         // Form SQL query with filtering.
         $courseidfilter = "";
         if (!is_null($courseid)) {
-            $courseidfilter = " AND (course.id = $courseid)";
+            $courseidfilter = " AND (contest.course = $courseid)";
         }
 
         $sql =
-            "SELECT submit.id AS id, course.id AS course_id, submit_time
+            "SELECT submit.id AS id, submit_time, contest.course AS course_id
              FROM {bacs_submits} submit
              JOIN {bacs} contest ON submit.contest_id = contest.id
-             JOIN {course} course ON contest.course = course.id
              WHERE (submit_time BETWEEN {$from->getTimestamp()} AND {$to->getTimestamp()}) $courseidfilter";
 
         return array_map(

@@ -38,8 +38,6 @@ $PAGE->set_pagelayout("standard");
 
 require_login();
 
-// Controller logic.
-
 $timezone = core_date::get_server_timezone_object(); // Preferred timezone.
 $submitsmanager = new submits_manager($timezone); // Submits manager.
 $filterform = new filter_form(submits_manager::get_available_courses(), $timezone); // Filter form.
